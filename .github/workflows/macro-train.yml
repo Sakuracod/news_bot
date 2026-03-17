@@ -1,0 +1,54 @@
+name: Macro Training Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC 时间。这里是每 30 分钟运行一次
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: macro-training-bot
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ensure seen.json exists
+        run: |
+          if [ ! -f seen.json ]; then
+            echo "[]" > seen.json
+          fi
+
+      - name: Run macro training bot
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          python macro_train_ntfy.py
+
+      - name: Commit updated seen.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seen.json
+          git diff --cached --quiet || git commit -m "update seen.json"
+          git push
