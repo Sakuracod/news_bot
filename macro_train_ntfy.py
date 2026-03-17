@@ -34,11 +34,13 @@ DELAY_BETWEEN_MESSAGES = 2
 # =========================
 # 2. ntfy 推送
 # =========================
-def send_ntfy(topic: str,
-              message: str,
-              title: str = "Macro Training",
-              priority: str = "4",
-              tags: str = "money") -> None:
+def send_ntfy(
+    topic: str,
+    message: str,
+    title: str = "Macro Training",
+    priority: str = "4",
+    tags: str = "money",
+) -> None:
     if not topic:
         raise RuntimeError("NTFY_TOPIC is empty")
 
@@ -80,18 +82,33 @@ def load_seen() -> set:
     if not os.path.exists(SEEN_FILE):
         return set()
 
-    with open(SEEN_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(SEEN_FILE, "r", encoding="utf-8") as f:
+            content = f.read().strip()
 
-    if isinstance(data, list):
-        return set(data)
+        if not content:
+            print("seen.json 是空文件，按空记录处理")
+            return set()
 
-    return set()
+        data = json.loads(content)
+
+        if isinstance(data, list):
+            return set(data)
+
+        print("seen.json 不是列表格式，按空记录处理")
+        return set()
+
+    except (json.JSONDecodeError, OSError) as e:
+        print("seen.json 读取失败，按空记录处理：", str(e))
+        return set()
 
 
 def save_seen(seen: set) -> None:
-    with open(SEEN_FILE, "w", encoding="utf-8") as f:
-        json.dump(sorted(list(seen)), f, ensure_ascii=False, indent=2)
+    try:
+        with open(SEEN_FILE, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(seen)), f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        print("保存 seen.json 失败：", str(e))
 
 
 # =========================
@@ -309,21 +326,23 @@ def main():
     print("检查新闻数:", checked_count)
     print("本次新增推送数:", pushed_count)
 
-    # 如果完全没有推送，发一条测试消息，方便你确认 GitHub Actions -> ntfy 链路是否通
     if pushed_count == 0:
         test_msg = (
             "【GitHub Actions 测试】\n\n"
             "脚本已成功运行，但本次没有命中新新闻。\n"
             "这说明 workflow 是通的，后续只需调整 RSS 源或关键词。"
         )
-        send_ntfy(
-            TOPIC,
-            test_msg,
-            title="Macro Bot Test",
-            priority="3",
-            tags="white_check_mark",
-        )
-        print("已发送兜底测试消息")
+        try:
+            send_ntfy(
+                TOPIC,
+                test_msg,
+                title="Macro Bot Test",
+                priority="3",
+                tags="white_check_mark",
+            )
+            print("已发送兜底测试消息")
+        except Exception as e:
+            print("兜底测试消息发送失败:", str(e))
 
 
 if __name__ == "__main__":
