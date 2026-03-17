@@ -30,8 +30,15 @@ jobs:
         run: |
           if [ -z "$NTFY_TOPIC" ]; then
             echo "NTFY_TOPIC is empty"
+            exit 1
           else
             echo "NTFY_TOPIC is set"
+          fi
+
+      - name: Ensure seen.json exists
+        run: |
+          if [ ! -f seen.json ]; then
+            echo "[]" > seen.json
           fi
 
       - name: Run macro training bot
